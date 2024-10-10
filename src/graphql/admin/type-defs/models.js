@@ -11,7 +11,7 @@ const models = gql`
     type Vehicle {
         id: ID!
         name: String!
-        manufacturer: Manufacturer!
+        manufacturer: Manufacturer! 
         model: Model!
         price: Float!
         quantity: Int!
@@ -48,7 +48,14 @@ const models = gql`
     input ModelInput {
         name: String!
         manufacturerId: ID!
+    }  
+
+    type ImportResult {
+        success: Boolean!
+        message: String!
+        importedCount: Int!
     }
+    
 `;
 
 export default models;

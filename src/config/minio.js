@@ -4,8 +4,8 @@ const minioClient = new Client({
     endPoint: '192.168.10.173',
     port: 9000,
     useSSL: false,
-    accessKey: 'GPPNXqmve3IemspKtRJu',
-    secretKey: '48rz0PN8Kx4009GuqMgSH0poAEwRlg9na68R8CBi'
+    accessKey: 'cK0LQLhljCi0j87zgzV8',
+    secretKey: 'UhRlfMHq7Y64sijTQOmgrcyYkl55L5TPVUwSSXHy'
 }); 
 
 export const updateBucketPolicyWithCORS = async (bucketName) => {

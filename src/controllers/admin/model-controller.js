@@ -45,6 +45,7 @@ class ModelController {
       throw new Error("Failed to fetch manufacturers");
     }
   }
+  
 }
 
 export default ModelController;

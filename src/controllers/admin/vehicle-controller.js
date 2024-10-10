@@ -2,7 +2,9 @@ import vehicleRepository from '../../repository/vehicle-repository.js';
 import fileService from '../../services/file-service.js';
 import { getFilenameFromUrl } from '../../utils/file-utils.js';
 import manufacturerRepository from '../../repository/manufacturer-repository.js';
-import modelRepository from '../../repository/model-repository.js';
+import modelRepository from '../../repository/model-repository.js'; 
+import { prisma } from '../../config/prisma.js';
+import xlsx from 'xlsx'
 /**
  * @desc VehicleController class for handling vehicle-related operations
  */
@@ -21,7 +23,8 @@ class VehicleController {
    */
   async addVehicle(input) {
     try {
-        // 1. Upload the images
+        // 1. Upload the images 
+        console.log(input)
         const primaryImageUrl = await this.fileService.uploadFile(input.primaryImage, 'vehicles');
         const otherImageUrls = await Promise.all(input.otherImages.map(file => this.fileService.uploadFile(file, 'vehicles')));
 
@@ -34,7 +37,9 @@ class VehicleController {
         const model = await this.modelRepository.findById(input.modelId);
         if (!model) {
             throw new Error("Model not found");
-        }
+        } 
+
+
 
         // 3. Prepare vehicle data with connect for relationships
         const vehicleData = {
@@ -45,7 +50,8 @@ class VehicleController {
             quantity: input.quantity,
             primaryImage: primaryImageUrl,
             otherImages: otherImageUrls,
-        };
+        }; 
+        console.log(vehicleData)
 
         // 4. Save vehicle in the database
         const vehicle = await this.vehicleRepository.createVehicle(vehicleData);
@@ -130,7 +136,7 @@ class VehicleController {
         price: price || existingVehicle.price,
         quantity: quantity || existingVehicle.quantity,
         primaryImage: primaryImageUrl,
-        otherImages: otherImageUrls,
+        otherImages: [otherImageUrls],
       });
   
       return updatedVehicle;
@@ -176,7 +182,156 @@ async deleteVehicle(id) {
     console.error("Error in deleteVehicle:", error);
     throw new Error("Failed to delete vehicle");
   }
-}
+} 
+
+
+  /**
+   * @desc Import vehicles from Excel file
+   * @param {Readable} stream - File stream
+   * @param {string} filename - Original filename
+   * @param {string} mimetype - File MIME type
+   * @returns {Object} Import result
+   */
+  async importVehiclesFromExcel(stream, filename, mimetype) {
+    if (!mimetype.includes('spreadsheet')) {
+      throw new Error('Invalid file type. Please upload an Excel file.');
+    }
+
+    try {
+      const buffer = await this.streamToBuffer(stream);
+      const workbook = xlsx.read(buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const data = xlsx.utils.sheet_to_json(sheet); 
+      
+
+      let importedCount = 0;
+      const errors = [];
+
+      for (const row of data) {
+        try {
+          await this.processVehicleRow(row);
+          importedCount++;
+        } catch (error) {
+          errors.push(`Row ${data.indexOf(row) + 2}: ${error.message}`);
+        }
+      }
+
+      const message = errors.length > 0
+        ? `Imported ${importedCount} vehicles with ${errors.length} errors. Errors: ${errors.join('; ')}`
+        : `Successfully imported ${importedCount} vehicles`;
+
+      return {
+        success: importedCount > 0,
+        message,
+        importedCount,
+      };
+    } catch (error) {
+      console.error('Error importing vehicles:', error);
+      return {
+        success: false,
+        message: `Error importing vehicles: ${error.message}`,
+        importedCount: 0,
+      };
+    }
+  }
+
+  /**
+   * @desc Process a single row from the Excel file
+   * @param {Object}  - Row data
+   */
+  async processVehicleRow(row) {
+    const { name, manufacturer, model, price, quantity, primaryImage, otherImages } = row;
+  
+    // Input validation
+    if (!name || !manufacturer || !model || !price || !quantity) {
+      throw new Error('Missing required fields');
+    }
+  
+    // Normalize input by trimming whitespace
+    const normalizedName = name.trim();
+    const normalizedManufacturer = manufacturer.trim();
+    const normalizedModel = model.trim();
+  
+    let processedPrimaryImage = null;
+    if (primaryImage) {
+      processedPrimaryImage = await this.fileService.downloadAndUploadImage(primaryImage, 'vehicles');
+    } 
+
+    console.log('primaryImage',processedPrimaryImage)
+  
+    // Process otherImages
+    let processedOtherImages = [];
+    if (otherImages) {
+      const imageUrls = otherImages
+        .split(/,\s*|\n/)
+        .map(url => url.trim())
+        .filter(url => url !== '');
+  
+      processedOtherImages = await Promise.all(
+        imageUrls.map(url => this.fileService.downloadAndUploadImage(url, 'vehicles'))
+      );
+    }
+  
+    // Check if the vehicle already exists
+    const existingVehicle = await this.vehicleRepository.findByNameManufacturerAndModel(
+      normalizedName,
+      normalizedManufacturer,
+      normalizedModel
+    );
+  
+    if (existingVehicle) {
+      // Update existing vehicle
+      const updatedVehicleData = {
+        price: price,
+        quantity: quantity,
+        primaryImage: processedPrimaryImage || existingVehicle.primaryImage,
+        otherImages: processedOtherImages.length > 0 ? processedOtherImages : existingVehicle.otherImages,
+      };
+  
+      await this.vehicleRepository.updateVehicle(existingVehicle.id, updatedVehicleData);
+      console.log(`Updated existing vehicle: ${normalizedName} (${normalizedManufacturer} ${normalizedModel})`);
+    } else {
+      // Find or create manufacturer
+      let manufacturerDoc = await manufacturerRepository.findByName(normalizedManufacturer);
+      if (!manufacturerDoc) {
+        manufacturerDoc = await manufacturerRepository.create({ name: normalizedManufacturer });
+      }
+      
+      // Find or create model
+      let modelDoc = await modelRepository.findByNameAndManufacturer(normalizedModel, manufacturerDoc.id);
+      if (!modelDoc) {
+        modelDoc = await modelRepository.createModel({ name: normalizedModel, manufacturerId: manufacturerDoc.id });
+      }
+  
+      // Create new vehicle
+      const newVehicleData = {
+        name: normalizedName,
+        manufacturer: { connect: { id: manufacturerDoc.id } },
+        model: { connect: { id: modelDoc.id } },
+        price: price,
+        quantity: quantity,
+        primaryImage: processedPrimaryImage || 'http://localhost:9000/vehicles/default-image.png',
+        otherImages: processedOtherImages,
+      };
+  
+      await this.vehicleRepository.createVehicle(newVehicleData);
+      console.log(`Created new vehicle: ${normalizedName} (${normalizedManufacturer} ${normalizedModel})`);
+    }
+  }
+  /**
+   * @desc Convert a readable stream to a buffer
+   * @param {Readable} stream - Readable stream
+   * @returns {Promise<Buffer>} Buffer
+   */
+  streamToBuffer(stream) {
+    return new Promise((resolve, reject) => {
+      const chunks = [];
+      stream.on('data', (chunk) => chunks.push(chunk));
+      stream.on('error', reject);
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+    });
+  }
 
 }
 

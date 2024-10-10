@@ -1,6 +1,9 @@
 import { gql } from "apollo-server-express";
 
 const mutations = gql`
+
+    scalar Upload
+
     type Mutation {
         #admin login mutation
 
@@ -9,7 +12,7 @@ const mutations = gql`
         #vehicle mutations
 
         addVehicle(input: AddVehicleInput!): Vehicle!
-        updateVehicle(id: ID!, input: VehicleUpdateInput!): Vehicle!
+        updateVehicle(id: ID!, input: VehicleUpdateInput!): Vehicle!    
         deleteVehicle(id: ID!): Vehicle!
         updateVehicleQuantity(id: ID!, quantity: Int!): Vehicle!
     
@@ -23,8 +26,12 @@ const mutations = gql`
 
         addModel(input: ModelInput!): Model!
         updateModel(id: ID!, input: ModelInput!): Model!
-        deleteModel(id: ID!): Model!
+        deleteModel(id: ID!): Model! 
+        
+        #import mutations 
 
+        importVehicles(file: Upload!): ImportResult!
+ 
         # Add other mutations here as needed
     }
 `;

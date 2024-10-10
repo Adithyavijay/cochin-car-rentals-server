@@ -6,8 +6,8 @@
   "scripts": {
     "seed": "node prisma",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "concurrently \"npx prisma studio\" \"npm run minio\" \"nodemon src/server.js\"",
-    "prisma-studio": "npx prisma studio",
+    "dev": "concurrently \"npx prisma studio --schema=src/prisma/schema.prisma\" \"npm run minio\" \"nodemon src/server.js\"",
+    "prisma-studio": "npx prisma studio --schema=src/prisma/schema.prisma",
     "server": "nodemon src/server.js",
     "start": "node src/server.js",
     "minio": "\"C:\\Users\\ASUS\\OneDrive\\Desktop\\minio.exe\" server .\\minio-data"
@@ -22,6 +22,7 @@
     "apollo-server-express": "^3.13.0",
     "apollo-server-plugin-http-headers": "^0.1.4",
     "apollo-upload-client": "^18.0.1",
+    "axios": "^1.7.7",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "concurrently": "^9.0.1",
@@ -30,7 +31,8 @@
     "express": "^4.21.0",
     "graphql-upload": "^13.0.0",
     "jsonwebtoken": "^9.0.2",
-    "minio": "^8.0.1"
+    "minio": "^8.0.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "prisma": "^5.20.0"

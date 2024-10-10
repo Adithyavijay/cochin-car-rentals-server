@@ -76,7 +76,55 @@ class VehicleRepository {
         model: true
       }
     });
+  } 
+     /**
+   * @desc Find a vehicle by manufacturer name and model name
+   * @param {string} manufacturerName - Name of the manufacturer
+   * @param {string} modelName - Name of the model
+   * @returns {Promise<Object|null>} Found vehicle object or null if not found
+   */
+   /**
+   * @desc Find a vehicle by name, manufacturer name, and model name (case-insensitive and ignoring spaces)
+   * @param {string} name - Name of the vehicle
+   * @param {string} manufacturerName - Name of the manufacturer
+   * @param {string} modelName - Name of the model
+   * @returns {Promise<Object|null>} Found vehicle object or null if not found
+   */
+   async findByNameManufacturerAndModel(name, manufacturerName, modelName) {
+    try {
+      const vehicle = await prisma.vehicle.findFirst({
+        where: {
+          name: {
+            equals: name,
+            mode: 'insensitive'
+          },
+          manufacturer: {
+            name: {
+              equals: manufacturerName,
+              mode: 'insensitive'
+            }
+          },
+          model: {
+            name: {
+              equals: modelName,
+              mode: 'insensitive'
+            }
+          }
+        },
+        include: {
+          manufacturer: true,
+          model: true
+        }
+      });
+
+      return vehicle;
+    } catch (error) {
+      console.error('Error in findByNameManufacturerAndModel:', error);
+       return null;
+    }
   }
+
+  
 }
 
 export default new VehicleRepository();

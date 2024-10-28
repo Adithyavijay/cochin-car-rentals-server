@@ -12,6 +12,12 @@ export const vehicleQueryResolvers = {
     getAllVehicles: async (_, __, { }) => {  
   
      return vehicleController.getAllVehicles();
-   }
+   } ,
+   searchVehicles: async (_, { query, minPrice, maxPrice, sortBy }) => { 
+    console.log('helllooo')
+    return vehicleController.searchVehicles(query, { minPrice, maxPrice, sortBy });
+  } ,
+
+  
 
  };

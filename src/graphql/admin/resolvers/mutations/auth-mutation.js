@@ -1,5 +1,7 @@
+import authController from '../../../../controllers/admin/auth-controller.js'
+
 export const authMutationResolvers = {  
     adminLogin: async (_, { email, password }, { adminController, res }) => { 
-        return adminController.login(email, password, res);
+        return authController.login(email, password, res);
       }, 
 }

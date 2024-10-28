@@ -4,17 +4,61 @@ import { getFilenameFromUrl } from '../../utils/file-utils.js';
 import manufacturerRepository from '../../repository/manufacturer-repository.js';
 import modelRepository from '../../repository/model-repository.js'; 
 import { prisma } from '../../config/prisma.js';
-import xlsx from 'xlsx'
+import xlsx from 'xlsx';
+import typesenseClient from '../../config/typesense-config.js';
+import { SearchClient } from 'typesense';
 /**
  * @desc VehicleController class for handling vehicle-related operations
- */
+ */ 
 class VehicleController {
   constructor() {
     this.vehicleRepository = vehicleRepository;
     this.fileService = fileService; 
     this.manufacturerRepository=manufacturerRepository;
     this.modelRepository=modelRepository;
+    this.initializeTypesenseSchema();
   }
+    
+  /**
+   * @desc Initialize Typesense schema for vehicles
+   */
+    async initializeTypesenseSchema() {  
+      // try{ 
+      //   if(typesenseClient.collections('vehicles'))
+      //   await typesenseClient.collections('vehicles').delete();
+      // }catch(err){
+      //   console.log(err)
+      // }
+      
+      const schema = {
+        name: 'vehicles',
+        fields: [
+          { name: 'id', type: 'string' },
+          { name: 'name', type: 'string', facet: true },
+          { name: 'manufacturer', type: 'string', facet: true },
+          { name: 'model', type: 'string', facet: true },
+          { name: 'dailyRate', type: 'float', facet: true },
+          { name: 'category', type: 'string', facet: true },
+          { name: 'transmission', type: 'string', facet: true },
+          { name: 'fuelType', type: 'string', facet: true },  // Changed from fuelType
+          { name: 'seatingCapacity', type: 'int32', facet: true },  // Changed from seatingCapacity
+          { name: 'yearOfManufacture', type: 'int32', facet: true },
+        ],
+        default_sorting_field: 'dailyRate'
+      };
+
+      try {
+        await typesenseClient.collections('vehicles').retrieve();
+        console.log('Typesense schema already exists');
+      } catch (error) {
+        if (error.httpStatus === 404) {
+          await typesenseClient.collections().create(schema);
+          console.log('Typesense schema created');
+        } else {
+          console.error('Error initializing Typesense schema:', error);
+        }
+      }
+    }
 
   /**
    * @desc Add a new vehicle
@@ -22,52 +66,88 @@ class VehicleController {
    * @returns {Object} Created vehicle object
    */
   async addVehicle(input) {
-    try {
-        // 1. Upload the images 
-        console.log(input)
-        const primaryImageUrl = await this.fileService.uploadFile(input.primaryImage, 'vehicles');
-        const otherImageUrls = await Promise.all(input.otherImages.map(file => this.fileService.uploadFile(file, 'vehicles')));
+    try { 
+      console.log('hello user')
+      // 1. Upload the images 
+      const primaryImageUrl = await this.fileService.uploadFile(input.primaryImage, 'vehicles');
+      const otherImageUrls = await Promise.all(input.otherImages.map(file => this.fileService.uploadFile(file, 'vehicles')));
 
-        // 2. Check if manufacturer and model exist
-        const manufacturer = await this.manufacturerRepository.findById(input.manufacturerId);
-        if (!manufacturer) {
-            throw new Error("Manufacturer not found");
-        }
+      // 2. Check if manufacturer and model exist
+      const manufacturer = await this.manufacturerRepository.findById(input.manufacturerId);
+      if (!manufacturer) {
+        throw new Error("Manufacturer not found");
+      }
 
-        const model = await this.modelRepository.findById(input.modelId);
-        if (!model) {
-            throw new Error("Model not found");
-        } 
+      const model = await this.modelRepository.findById(input.modelId);
+      if (!model) {
+        throw new Error("Model not found");
+      }
 
+      // 3. Prepare vehicle data with connect for relationships
+      const vehicleData = {
+        name: input.name,
+        manufacturer: { connect: { id: input.manufacturerId } },
+        model: { connect: { id: input.modelId } },
+        dailyRate: input.dailyRate,
+        availableQuantity: input.availableQuantity,
+        primaryImage: primaryImageUrl,
+        otherImages: otherImageUrls,
+        category: input.category,
+        description: input.description,
+        transmission: input.transmission,
+        seatingCapacity: input.seatingCapacity,
+        yearOfManufacture: input.yearOfManufacture,
+        maintenanceStatus: input.maintenanceStatus,
+        fuelType : input.fuelType
+        
+      };
 
+      // 4. Save vehicle in the database
+      const vehicle = await this.vehicleRepository.createVehicle(vehicleData);
+      console.log(`Vehicle added to database: ${vehicle.id}`);
 
-        // 3. Prepare vehicle data with connect for relationships
-        const vehicleData = {
-            name: input.name,
-            manufacturer: { connect: { id: input.manufacturerId } }, // Using connect here
-            model: { connect: { id: input.modelId } }, // Using connect here
-            price: input.price,
-            quantity: input.quantity,
-            primaryImage: primaryImageUrl,
-            otherImages: otherImageUrls,
-        }; 
-        console.log(vehicleData)
+      // 5. Add vehicle to Typesense
+      await this.addVehicleToTypesense(vehicle);
 
-        // 4. Save vehicle in the database
-        const vehicle = await this.vehicleRepository.createVehicle(vehicleData);
-        console.log(`Vehicle added to database: ${vehicle.id}`);
-
-        // 5. Return the vehicle with manufacturer and model data
-        return {
-            ...vehicle,
-            manufacturer, // Return the full manufacturer object
-            model,        // Return the full model object
-        };
+      // 6. Return the vehicle with manufacturer and model data
+      return {
+        ...vehicle,
+        manufacturer,
+        model,
+      };
     } catch (error) {
-        console.error("Error in addVehicle:", error);
-        throw new Error("Failed to add vehicle");
+      console.error("Error in addVehicle:", error);
+      throw new Error("Failed to add vehicle");
     }
-}
+  }
+
+
+  /**
+   * @desc Add a vehicle to Typesense
+   * @param {Object} vehicle - Vehicle object
+   */
+  async addVehicleToTypesense(vehicle) {
+    try {
+      const typesenseDocument = {
+        id: vehicle.id,
+        name: vehicle.name,
+        manufacturer: vehicle.manufacturer.name,
+        model: vehicle.model.name,
+        dailyRate: vehicle.dailyRate,
+        category: vehicle.category,
+        transmission: vehicle.transmission,
+        yearOfManufacture: vehicle.yearOfManufacture,
+        fuelType : vehicle.fuelType,
+        seatingCapacity : vehicle.seatingCapacity
+      };
+
+      await typesenseClient.collections('vehicles').documents().create(typesenseDocument);
+      console.log(`Vehicle added to Typesense: ${vehicle.id}`);
+    } catch (error) {
+      console.error("Error adding vehicle to Typesense:", error);
+    }
+  }
+
   /**
    * @desc Get all vehicles
    * @returns {Array} Array of vehicle objects
@@ -81,108 +161,188 @@ class VehicleController {
     }
   } 
 
-  async updateVehicle(id, input) {
+   /**
+   * @desc Update a vehicle
+   * @param {string} id - Vehicle ID
+   * @param {Object} input - Updated vehicle data
+   * @returns {Object} Updated vehicle object
+   */
+   async updateVehicle(id, input) {
     try {
-      const {
-        name,
-        manufacturerId,
-        modelId,
-        price,
-        quantity,
-        primaryImage,
-        otherImages,
-      } = input;
-      console.log("Update input:", input);
-  
       const existingVehicle = await this.vehicleRepository.findVehicleById(id);
-  
       if (!existingVehicle) {
         throw new Error("Vehicle not found");
       }
-  
-      // Validate manufacturer and model
-      const manufacturer = await this.manufacturerRepository.findById(manufacturerId);
-      if (!manufacturer) {
-        throw new Error("Manufacturer not found");
-      }
-  
-      const model = await this.modelRepository.findById(modelId);
-      if (!model) {
-        throw new Error("Model not found");
-      }
-  
-      // Handle primary image
+
+      // Handle image updates
       let primaryImageUrl = existingVehicle.primaryImage;
-      if (primaryImage) {
-        if (existingVehicle.primaryImage) {
-          await this.fileService.deleteFile(getFilenameFromUrl(existingVehicle.primaryImage));
-        }
-        primaryImageUrl = await this.fileService.uploadFile(primaryImage, 'vehicles');
+      if (input.primaryImage) {
+        await this.fileService.deleteFile(getFilenameFromUrl(existingVehicle.primaryImage));
+        primaryImageUrl = await this.fileService.uploadFile(input.primaryImage, 'vehicles');
       }
-  
-      // Handle other images
+
       let otherImageUrls = existingVehicle.otherImages;
-      if (otherImages && otherImages.length > 0) {
+      if (input.otherImages && input.otherImages.length > 0) {
         for (const oldImageUrl of existingVehicle.otherImages) {
           await this.fileService.deleteFile(getFilenameFromUrl(oldImageUrl));
         }
-        otherImageUrls = await Promise.all(otherImages.map(file => this.fileService.uploadFile(file, 'vehicles')));
+        otherImageUrls = await Promise.all(input.otherImages.map(file => this.fileService.uploadFile(file, 'vehicles')));
       }
-  
-      const updatedVehicle = await this.vehicleRepository.updateVehicle(id, {
-        name: name || existingVehicle.name,
-        manufacturer: { connect: { id: manufacturerId } },
-        model: { connect: { id: modelId } },
-        price: price || existingVehicle.price,
-        quantity: quantity || existingVehicle.quantity,
+
+      const updatedVehicleData = {
+        ...input,
         primaryImage: primaryImageUrl,
-        otherImages: [otherImageUrls],
-      });
-  
+        otherImages: otherImageUrls,
+      };
+
+      const updatedVehicle = await this.vehicleRepository.updateVehicle(id, updatedVehicleData);
+
+      // Update Typesense
+      await this.updateVehicleInTypesense(updatedVehicle);
+
       return updatedVehicle;
     } catch (error) {
       console.error("Error updating vehicle:", error);
       throw new Error(`Failed to update vehicle: ${error.message}`);
     }
-  }
+  } 
 
-  // In vehicle-controller.js
-
-/**
- * @desc Delete a vehicle by its ID
- * @param {string} id - ID of the vehicle to delete
- * @returns {Object} Deleted vehicle object
- */
-async deleteVehicle(id) {
-  try {
-    // Fetch the vehicle to get image URLs
-    const vehicle = await this.vehicleRepository.findVehicleById(id);
-    if (!vehicle) {
-      throw new Error("Vehicle not found");
-    }
-
-    // Delete the primary image
-    if (vehicle.primaryImage) {
-      await this.fileService.deleteFile(getFilenameFromUrl(vehicle.primaryImage));
-    }
-
-    // Delete other images
-    if (vehicle.otherImages && vehicle.otherImages.length > 0) {
-      for (const imageUrl of vehicle.otherImages) {
-        await this.fileService.deleteFile(getFilenameFromUrl(imageUrl));
+    /**
+   * @desc Update a vehicle in Typesense
+   * @param {Object} vehicle - Updated vehicle object
+   */
+    async updateVehicleInTypesense(vehicle) {
+      try {
+        const typesenseDocument = {
+          id: vehicle.id,
+          name: vehicle.name,
+          manufacturer: vehicle.manufacturer.name,
+          model: vehicle.model.name,
+          dailyRate: vehicle.dailyRate,
+          category: vehicle.category,
+          transmission: vehicle.transmission,
+          yearOfManufacture: vehicle.yearOfManufacture
+        };
+  
+        await typesenseClient.collections('vehicles').documents(vehicle.id).update(typesenseDocument);
+        console.log(`Vehicle updated in Typesense: ${vehicle.id}`);
+      } catch (error) {
+        console.error("Error updating vehicle in Typesense:", error);
       }
     }
 
-    // Delete the vehicle from the database
-    const deletedVehicle = await this.vehicleRepository.deleteVehicle(id);
-    
-    console.log(`Vehicle deleted from database: ${id}`);
-    return deletedVehicle
-  } catch (error) {
-    console.error("Error in deleteVehicle:", error);
-    throw new Error("Failed to delete vehicle");
+
+  /**
+   * @desc Delete a vehicle by its ID
+   * @param {string} id - ID of the vehicle to delete
+   * @returns {Object} Deleted vehicle object
+   */
+  async deleteVehicle(id) {
+    try {
+      const vehicle = await this.vehicleRepository.findVehicleById(id);
+      if (!vehicle) {
+        throw new Error("Vehicle not found");
+      }
+
+      // Delete images
+      await this.fileService.deleteFile(getFilenameFromUrl(vehicle.primaryImage));
+      for (const imageUrl of vehicle.otherImages) {
+        await this.fileService.deleteFile(getFilenameFromUrl(imageUrl));
+      }
+
+      const deletedVehicle = await this.vehicleRepository.deleteVehicle(id);
+
+      // Delete from Typesense
+      await this.deleteVehicleFromTypesense(id);
+
+      console.log(`Vehicle deleted from database: ${id}`);
+      return deletedVehicle;
+    } catch (error) {
+      console.error("Error in deleteVehicle:", error);
+      throw new Error("Failed to delete vehicle");
+    }
   }
-} 
+
+    /**
+   * @desc Delete a vehicle from Typesense
+   * @param {string} id - Vehicle ID
+   */
+    async deleteVehicleFromTypesense(id) {
+      try {
+        await typesenseClient.collections('vehicles').documents(id).delete();
+        console.log(`Vehicle deleted from Typesense: ${id}`);
+      } catch (error) {
+        console.error("Error deleting vehicle from Typesense:", error);
+      }
+    }
+
+
+  
+  /**
+ * @desc Search for vehicles using Typesense
+ * @param {string} query - Search query
+ * @param {Object} filters - Filter options (minPrice, maxPrice, sortBy)
+ * @returns {Promise<Array>} Array of matching vehicle objects
+ */
+async searchVehicles(query, { minPrice, maxPrice, sortBy } = {}) {
+  try {
+
+      const searchParameters = {
+          q: query,
+          query_by: 'name,manufacturer,model',
+          sort_by: sortBy || 'dailyRate:asc',
+          filter_by: '',
+          per_page: 100
+      };
+
+      // Build filter conditions array
+      const filterConditions = [];
+
+      if (minPrice) {
+          filterConditions.push(`dailyRate:>=${minPrice}`);
+      }
+
+      if (maxPrice) {
+          filterConditions.push(`dailyRate:<=${maxPrice}`);
+      }
+
+      // Join filter conditions if they exist
+      if (filterConditions.length > 0) {
+          searchParameters.filter_by = filterConditions.join(' && ');
+      }
+
+      console.log('Search parameters:', searchParameters);
+
+      // Perform the search
+      const searchResults = await typesenseClient
+          .collections('vehicles')
+          .documents()
+          .search(searchParameters);
+
+      console.log(`Found ${searchResults.hits.length} results`);
+
+      // Extract vehicle IDs from search results
+      const vehicleIds = searchResults.hits.map(hit => hit.document.id);
+
+      if (vehicleIds.length === 0) {
+          return [];
+      }
+
+      // Fetch complete vehicle details from database
+      const vehicles = await this.vehicleRepository.findVehiclesByIds(vehicleIds);
+
+      // Maintain the order from search results
+      const orderedVehicles = vehicleIds
+          .map(id => vehicles.find(vehicle => vehicle.id === id))
+          .filter(Boolean);
+
+      return orderedVehicles;
+
+  } catch (error) {
+      console.error("Error in searchVehicles:", error);
+      throw new Error(`Failed to search vehicles: ${error.message}`);
+  }
+}
 
 
   /**

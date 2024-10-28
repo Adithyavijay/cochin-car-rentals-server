@@ -8,37 +8,41 @@ const models = gql`
         name: String!
     }
 
-    type Vehicle {
-        id: ID!
-        name: String!
-        manufacturer: Manufacturer! 
-        model: Model!
-        price: Float!
-        quantity: Int!
-        primaryImage: String!
-        otherImages: [String!]!
-    }
-    input AddVehicleInput {
-        name: String!
-        manufacturerId: ID! # Reference to Manufacturer by ID
-        modelId: ID! # Reference to Model by ID
-        price: Float!
-        quantity: Int!
-        primaryImage: Upload!
-        otherImages: [Upload!]! 
-        
-    } 
-    input VehicleUpdateInput {
-        name: String
-        manufacturerId: ID # Reference to Manufacturer by ID (optional for updates)
-        modelId: ID # Reference to Model by ID (optional for updates)
-        price: Float
-        quantity: Int
-        primaryImage: Upload
-        otherImages: [Upload!]
-    } 
-     
+ input AddVehicleInput {
+    name: String!
+    manufacturerId: ID!
+    modelId: ID!
+    dailyRate: Float!
+    availableQuantity: Int!
+    primaryImage: Upload!
+    otherImages: [Upload!]!
+    category: VehicleCategory!
+    description: String!
+    transmission: TransmissionType!
+    seatingCapacity: Int!
+    yearOfManufacture: Int!
+    maintenanceStatus: MaintenanceStatus!
+    fuelType:FuelType!
+}   
 
+input VehicleUpdateInput {
+    name: String
+    manufacturerId: ID
+    modelId: ID
+    dailyRate: Float
+    availableQuantity: Int
+    primaryImage: Upload
+    otherImages: [Upload!]
+    category: VehicleCategory
+    description: String
+    transmission: TransmissionType
+    seatingCapacity: Int
+    yearOfManufacture: Int
+    maintenanceStatus: MaintenanceStatus
+    fuelType: FuelType
+}
+
+    
     type Model {
         id: ID!
         name: String!
@@ -48,14 +52,37 @@ const models = gql`
     input ModelInput {
         name: String!
         manufacturerId: ID!
-    }  
+    }
 
     type ImportResult {
         success: Boolean!
         message: String!
         importedCount: Int!
     }
-    
+
+    type User {
+        id: ID!
+        name: String!
+        email: String!
+        phone: String!
+        city: String!
+        state: String!
+        country: String!
+        pincode: String!
+        profilePicture: String
+    }
+
+    input RegisterUserInput {
+        name: String!
+        email: String!
+        phone: String!
+        city: String!
+        state: String!
+        country: String!
+        pincode: String!
+        password: String!
+        profilePicture: Upload
+    } 
 `;
 
 export default models;

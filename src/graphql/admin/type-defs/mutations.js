@@ -28,11 +28,16 @@ const mutations = gql`
         updateModel(id: ID!, input: ModelInput!): Model!
         deleteModel(id: ID!): Model! 
         
-        #import mutations 
+        #import mutations  
 
-        importVehicles(file: Upload!): ImportResult!
+        importVehicles(file: Upload!): ImportResult! 
+
+        #user registration 
+
+        registerUser(input: RegisterUserInput!): User!
  
-        # Add other mutations here as needed
+        # search mutation 
+        
     }
 `;
 

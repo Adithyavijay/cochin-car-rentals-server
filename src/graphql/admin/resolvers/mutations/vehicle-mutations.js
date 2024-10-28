@@ -1,9 +1,11 @@
 import vehicleController from "../../../../controllers/admin/vehicle-controller.js";
 
+
 export const vehicleMutationResolvers = {
     // add vehicle
     
-    addVehicle: async (_, { input }) => {
+    addVehicle: async (_, { input }) => {   
+      console.log('hiii')
         return vehicleController.addVehicle(input);
     },
 
@@ -65,5 +67,5 @@ export const vehicleMutationResolvers = {
           };
         }
       },
-    
+
 };

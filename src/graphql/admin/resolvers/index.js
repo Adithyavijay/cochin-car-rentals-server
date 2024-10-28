@@ -23,7 +23,8 @@ const adminResolvers = {
     ...vehicleMutationResolvers,
     ...authMutationResolvers,
     ...manufacturerMutationResolvers,
-    ...modelMutationResolvers
+    ...modelMutationResolvers,
+    
     // ...bookingMutationResolvers,
   },
 };

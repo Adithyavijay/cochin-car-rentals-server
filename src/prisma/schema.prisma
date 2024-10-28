@@ -39,16 +39,164 @@ model Model {
 }
 
 model Vehicle {
+  id                String       @id @default(uuid())
+  name              String
+  manufacturerId    String
+  manufacturer      Manufacturer @relation(fields: [manufacturerId], references: [id])
+  modelId           String
+  model             Model        @relation(fields: [modelId], references: [id])
+  dailyRate         Float
+  availableQuantity Int
+  primaryImage      String
+  otherImages       String[]
+  
+  // New fields
+  category          VehicleCategory
+  description       String
+  transmission      TransmissionType
+  seatingCapacity   Int
+  yearOfManufacture Int
+  maintenanceStatus MaintenanceStatus
+  fuelType        FuelType         @default(PETROL)  // Added this field with default
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  bookings          Booking[]
+  reservations      Reservation[]
+  queueEntries      Queue[]
+  reviews           Review[]
+}
+
+enum VehicleCategory {
+  ECONOMY
+  COMPACT
+  MIDSIZE
+  FULLSIZE
+  LUXURY
+  SUV
+  VAN
+  TRUCK
+} 
+
+enum TransmissionType {
+  MANUAL  
+  AUTOMATIC
+  SEMI_AUTOMATIC
+}
+
+enum MaintenanceStatus {
+  EXCELLENT
+  GOOD
+  NEEDS_SERVICE
+  IN_MAINTENANCE
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  HYBRID
+  ELECTRIC
+}
+
+
+model User {
   id              String       @id @default(uuid())
   name            String
-  manufacturerId  String
-  manufacturer    Manufacturer @relation(fields: [manufacturerId], references: [id])
-  modelId         String
-  model           Model        @relation(fields: [modelId], references: [id])
-  price           Float
-  quantity        Int
-  primaryImage    String
-  otherImages     String[]
+  email           String       @unique
+  password        String
+  city            String
+  state           String
+  country         String
+  pincode         String
+  
+  phone           String       @unique
+  address         String?
+  profilePicture  String?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  bookings        Booking[]
+  reservations    Reservation[]
+  queueEntries    Queue[]
+  reviews         Review[]     // New relationship with Review model
+}
+
+model Booking {
+  id                  String         @id @default(uuid())
+  userId              String
+  vehicleId           String
+  bookingStatus       BookingStatus
+  startDate           DateTime
+  endDate             DateTime
+  totalAmount         Float
+  paymentStatus       PaymentStatus
+  cancellationReason  String?
+  issued              Boolean        @default(false)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  hasReview           Boolean        @default(false)
+  review              Review?        // New optional relationship with Review model
+
+  user                User           @relation(fields: [userId], references: [id])
+  vehicle             Vehicle        @relation(fields: [vehicleId], references: [id])
+}
+
+model Reservation {
+  id              String            @id @default(uuid())
+  vehicleId       String
+  userId          String
+  expiresAt       DateTime
+  status          ReservationStatus
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  vehicle         Vehicle           @relation(fields: [vehicleId], references: [id])
+  user            User              @relation(fields: [userId], references: [id])
+}
+
+model Queue {
+  id              String    @id @default(uuid())
+  userId          String
+  vehicleId       String
+  position        Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id])
+  vehicle         Vehicle   @relation(fields: [vehicleId], references: [id])
+}
+
+// New Review model
+model Review {
+  id          String    @id @default(uuid())
+  userId      String
+  vehicleId   String
+  bookingId   String    @unique  // Each booking can have only one review
+  rating      Int       // e.g., 1 to 5 stars
+  comment     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id])
+  vehicle     Vehicle   @relation(fields: [vehicleId], references: [id])
+  booking     Booking   @relation(fields: [bookingId], references: [id])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ISSUED
+  CANCELED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  EXPIRED
+  CONVERTED
+  CANCELLED
 }

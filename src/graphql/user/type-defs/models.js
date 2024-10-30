@@ -108,4 +108,21 @@ user : User!
     totalCount: Int!
     facets: SearchFacets
   }
+
+ type AvailabilityResponse {
+    status: AvailabilityStatus!
+    percentage: Float!
+    canBookDirectly: Boolean!
+    availableUnits: Int
+    queuePosition: Int
+    returningVehicles: Int
+    potentialCancellations: Int
+    message: String!
+}
+
+input AvailabilityCheckInput {
+    vehicleId: ID!
+    startDate: String!
+    endDate: String!
+}
 `;

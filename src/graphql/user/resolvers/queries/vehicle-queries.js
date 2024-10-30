@@ -18,6 +18,10 @@ export const vehicleQueryResolvers = {
   } ,  
   searchVehiclesUser: async (_, { input }, { }) => {
     return vehicleController.searchVehicles(input);
-  },
+  }, 
+  getVehicleDetails  : async ( _ , { id } ,{ })=>{
+    return await vehicleController.getVehicleDetails(id)
+    
+  }
 
 }

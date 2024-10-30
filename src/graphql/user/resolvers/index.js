@@ -1,5 +1,6 @@
 import { authMutationResolvers } from "../resolvers/mutations/auth-mutation.js";
 import { authQueryResolvers } from "./queries/auth-queries.js";
+import { vehicleAvailabilityResolver } from "./queries/vehicle-availability-queries.js";
 import { vehicleQueryResolvers } from "./queries/vehicle-queries.js";
 
 // Import other resolver modules as needed
@@ -9,7 +10,8 @@ import { vehicleQueryResolvers } from "./queries/vehicle-queries.js";
 const userResolvers = {
   Query: {
     ...authQueryResolvers,
-    ...vehicleQueryResolvers,
+    ...vehicleQueryResolvers, 
+    ...vehicleAvailabilityResolver
     // Spread other query resolvers here
     // ...authQueryResolvers,
     // ...bookingQueryResolvers,

@@ -62,4 +62,13 @@
             HYBRID
             ELECTRIC
     }
+
+    enum AvailabilityStatus {
+    AVAILABLE
+    QUEUED
+    UNAVAILABLE
+}
+
+
+
     `;

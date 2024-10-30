@@ -249,6 +249,17 @@
     } catch (error) {
       console.error('Schema verification failed:', error);
     }
+  } 
+
+  async getVehicleDetails( id ){
+    try{
+
+      const vehicle = await vehicleRepository.findVehicleById(id)   
+      return vehicle ;
+
+    }catch(err){
+
+    }
   }
     }
 

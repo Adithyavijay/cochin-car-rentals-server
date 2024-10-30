@@ -5,7 +5,9 @@ import { gql } from 'apollo-server-express';
       hello : String! 
       getUserDetails : User! @auth
       getAvailableVehiclesForRent: [Vehicle!]!  
-      searchVehiclesUser(input: SearchVehicleInput!): SearchVehicleResult!
+      searchVehiclesUser(input: SearchVehicleInput!): SearchVehicleResult! 
+      getVehicleDetails(id : ID!) : Vehicle!
+      checkVehicleAvailability(input: AvailabilityCheckInput!): AvailabilityResponse!
     }
   
   `; 

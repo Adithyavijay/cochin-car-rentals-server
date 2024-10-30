@@ -6,7 +6,6 @@ import { prisma } from './config/prisma.js';
 import { typeDefs } from './graphql/index.js';
 import { resolvers } from './graphql/index.js';
 import cors from 'cors';
-import { createAdminController } from './modules/admin/controllers/adminController.js';
 import { graphqlUploadExpress } from 'graphql-upload';
 import minioConfig from './config/minio.js';
 import dotenv from 'dotenv';
